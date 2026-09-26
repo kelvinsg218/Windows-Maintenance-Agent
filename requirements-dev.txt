@@ -1,0 +1,5 @@
+# Dependências de desenvolvimento (testes e lint), além das de runtime.
+# Instalação: pip install -r requirements-dev.txt   (ou: pip install -e .[dev])
+-r requirements.txt
+pytest==9.1.1
+ruff==0.16.9

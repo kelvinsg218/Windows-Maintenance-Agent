@@ -1,0 +1,57 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Build / empacotamento (o código-fonte é a fonte oficial) ---
+build/
+dist/
+*.exe
+*.msi
+*.spec
+
+# --- Dados de execução: logs, relatórios e histórico reais ---
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.lock
+
+# --- Configuração privada e credenciais ---
+config.json
+*.local.json
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+credentials*.json
+secrets/
+
+# --- Temporários, IDE e sistema ---
+*.tmp
+*.temp
+*.bak
+*.swp
+~$*
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
