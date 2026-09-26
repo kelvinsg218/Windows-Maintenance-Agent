@@ -155,6 +155,7 @@ def _winget_label(winget: WingetInfo | None) -> str:
 def cmd_status(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     ensure_supported_platform()
     loaded, paths = _load(args)
+    _print_notes(loaded)
     services = make_services()
     info = services.collect_system_info(services.registry)
     privileges = services.get_privileges()
@@ -203,7 +204,6 @@ def cmd_status(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
     lines.append(f"Sim ({', '.join(reboot.sources)})" if reboot.required else "Não")
     lines += ["", "Agent:", f"v{__version__}"]
     print("\n".join(lines))
-    _print_notes(loaded)
     return EXIT_OK
 
 
