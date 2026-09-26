@@ -17,7 +17,8 @@ class FakeRegistry(RegistryReader):
 
     def __init__(self) -> None:
         self._values: dict[tuple[str, str, str], Any] = {}
-        self._keys: set[tuple[str, str]] = set()
+        # chave normalizada (minúsculas) -> caminho com a caixa original
+        self._keys: dict[tuple[str, str], str] = {}
 
     def set(self, hive: str, key: str, name: str, value: Any) -> FakeRegistry:
         self._values[(hive.upper(), key.lower(), name.lower())] = value
@@ -27,7 +28,8 @@ class FakeRegistry(RegistryReader):
     def add_key(self, hive: str, key: str) -> FakeRegistry:
         parts = key.split("\\")
         for index in range(1, len(parts) + 1):
-            self._keys.add((hive.upper(), "\\".join(parts[:index]).lower()))
+            path = "\\".join(parts[:index])
+            self._keys.setdefault((hive.upper(), path.lower()), path)
         return self
 
     def get_value(self, hive: str, key: str, name: str) -> Any | None:
@@ -39,9 +41,9 @@ class FakeRegistry(RegistryReader):
     def list_subkeys(self, hive: str, key: str) -> list[str]:
         prefix = key.lower() + "\\"
         names = {
-            k[len(prefix) :].split("\\")[0]
-            for h, k in self._keys
-            if h == hive.upper() and k.startswith(prefix)
+            original[len(prefix) :].split("\\")[0]
+            for (h, lowered), original in self._keys.items()
+            if h == hive.upper() and lowered.startswith(prefix)
         }
         return sorted(names)
 
