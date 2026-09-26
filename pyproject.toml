@@ -46,6 +46,9 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["maintenance", "tests"]
+
 [tool.ruff.lint.per-file-ignores]
 # Testes usam assert, arquivos temporários e subprocess controlados.
 "tests/**" = ["S101", "S105", "S106", "S108", "S603"]
