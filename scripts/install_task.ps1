@@ -125,6 +125,16 @@ if ($ConfigPath) {
 }
 $argumentLine = $arguments -join ' '
 
+# Segurança: executado como SYSTEM, o agente não deve ficar em uma pasta que usuários
+# comuns possam alterar (quem altera o código executado pela tarefa ganha privilégios SYSTEM).
+$usersRoot = Join-Path $env:SystemDrive 'Users'
+if ($RunAs -eq 'System' -and $workingDirectory.StartsWith($usersRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    Write-Warning ("O agente está dentro de um perfil de usuário ($workingDirectory). Processos " +
+        'desse usuário poderiam alterá-lo e o código seria executado como SYSTEM. Em produção, ' +
+        'instale o agente em uma pasta protegida (ex.: C:\Program Files\WindowsMaintenanceAgent) ' +
+        'com escrita apenas para administradores.')
+}
+
 # --- Definição da tarefa ------------------------------------------------------------
 $time = [datetime]::ParseExact($At, 'HH:mm', [Globalization.CultureInfo]::InvariantCulture)
 if ($Schedule -eq 'Daily') {
