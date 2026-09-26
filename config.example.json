@@ -1,0 +1,20 @@
+{
+  "_comment": "Copie para config.json (nao versionado) na pasta do agente. Chaves iniciadas por '_' sao comentarios. Nunca coloque usuario/senha aqui.",
+  "update_chrome": true,
+  "update_windows": true,
+  "cleanup_temp": true,
+  "_network_log_path_exemplo": "\\\\SERVIDOR\\TI\\maintenance",
+  "network_log_path": "",
+  "log_retention_days": 90,
+  "data_dir": "",
+  "winget_timeout_seconds": 900,
+  "windows_update_search_timeout_minutes": 30,
+  "windows_update_install_timeout_minutes": 180,
+  "windows_update_include_optional": false,
+  "windows_update_accept_eulas": false,
+  "cleanup_targets": ["user_temp", "windows_temp", "all_profiles_temp"],
+  "cleanup_min_age_days": 7,
+  "disk_min_free_percent": 10,
+  "disk_min_free_gb": 10,
+  "network_timeout_seconds": 120
+}
