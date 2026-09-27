@@ -288,7 +288,7 @@ def upgrade_package(
     ]
     logger.debug("Running: %s", " ".join(args))
     result = runner(args, timeout=timeout, cwd=_cwd_for(winget))
-    logger.debug(
+    logger.info(
         "winget upgrade finished: exit=%s duration=%.1fs",
         format_exit_code(result.exit_code),
         result.duration_seconds,

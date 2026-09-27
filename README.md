@@ -66,7 +66,7 @@ continua; somente erros críticos interrompem a execução.
 | Identificação | Hostname, usuário da sessão, edição/versão/build do Windows (corrige o "Windows 10" que o Registro informa no Windows 11), arquitetura, uptime. |
 | Privilégios | Detecta se o processo está elevado e identifica "administrador sem elevação". Nunca tenta se elevar. |
 | Winget | Localiza o `winget.exe` (PATH, alias do usuário ou pasta do pacote, necessária na conta SYSTEM) e obtém a versão. |
-| Google Chrome | Detecta pelo Registro (versão e escopo máquina/usuário); verifica e atualiza via winget usando apenas os IDs estáveis `Google.Chrome` e `Google.Chrome.EXE`, com timeout, stdout/stderr, exit code e duração registrados. |
+| Google Chrome | Detecta pelo Registro (versão e escopo máquina/usuário); verifica e atualiza via winget usando apenas os IDs estáveis `Google.Chrome` e `Google.Chrome.EXE`, com timeout; stdout/stderr são capturados (últimas linhas no log em caso de falha) e exit code e duração ficam no log e no relatório JSON. |
 | Windows Update | Pesquisa, baixa e instala pela Windows Update Agent API (COM), respeitando WSUS/políticas. Ignora drivers, atualizações opcionais e de recurso por padrão. Instala somente com privilégios administrativos. |
 | Reinicialização | Detecta reinicialização pendente (CBS, Windows Update, UpdateExeVolatile, substituições em `PendingFileRenameOperations`, renomeação do computador) e a exigida pelas atualizações instaladas. **Nunca reinicia.** |
 | Limpeza | Remove arquivos antigos do Temp do usuário, do `C:\Windows\Temp` e do Temp de todos os perfis (os dois últimos exigem admin), com validação estrita de caminhos. |
