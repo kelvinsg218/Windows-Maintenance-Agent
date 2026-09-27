@@ -119,10 +119,11 @@ def build_environment(
     recent_file = user_temp / "recent.tmp"
     recent_file.write_bytes(b"y" * 10)
 
+    # Formato real de "winget list --source winget": sem a coluna Origem.
     listing = winget_table(
-        ["Nome", "ID", "Versão", "Disponível", "Origem"],
-        [14, 18, 14, 14, 6],
-        [["Google Chrome", "Google.Chrome.EXE", "153.0.8010.53", chrome_available, "winget"]],
+        ["Nome", "ID", "Versão", "Disponível"],
+        [14, 18, 14, 13],
+        [["Google Chrome", "Google.Chrome.EXE", "153.0.8010.53", chrome_available]],
     )
 
     def respond(args: list[str]) -> CommandResult:

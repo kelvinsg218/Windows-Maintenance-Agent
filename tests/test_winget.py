@@ -20,12 +20,24 @@ from maintenance.winget import (
 )
 from tests.helpers import FakeRunner, command_result, winget_table
 
-# Saída real capturada no Windows 11 pt-BR (winget v1.29.380).
+# Saídas reais capturadas no Windows 11 pt-BR (winget v1.29.380).
 REAL_PT_BR_WITH_UPDATE = (
     "Nome          ID                Versão        Disponível    Origem\r\n"
     "------------------------------------------------------------------\r\n"
     "Google Chrome Google.Chrome.EXE 153.0.8010.53 154.0.8037.58 winget\r\n"
 )
+# Com --source winget (como o agente executa) a coluna "Origem" é omitida.
+REAL_PT_BR_SOURCE_FILTERED_WITH_UPDATE = (
+    "Nome          ID                Versão        Disponível\r\n"
+    "-----------------------------------------------------------\r\n"
+    "Google Chrome Google.Chrome.EXE 153.0.8010.53 154.0.8037.58\r\n"
+)
+PT_BR_SOURCE_FILTERED_UP_TO_DATE = winget_table(
+    ["Nome", "ID", "Versão"],
+    [14, 18, 13],
+    [["Google Chrome", "Google.Chrome.EXE", "154.0.8037.58"]],
+)
+REAL_PT_BR_UPGRADE_AVAILABLE_FOOTER = REAL_PT_BR_WITH_UPDATE + "1 atualizações disponíveis.\r\n"
 REAL_PT_BR_NOT_FOUND = (
     "Nenhum pacote instalado foi encontrado que corresponda aos critérios de entrada.\r\n"
 )
@@ -44,6 +56,30 @@ def test_parse_real_pt_br_output_with_available_column():
     assert package.version == "153.0.8010.53"
     assert package.available == "154.0.8037.58"
     assert package.source == "winget"
+
+
+def test_parse_real_source_filtered_output_with_update():
+    """Regressão: com --source, a 4ª coluna é "Disponível" (não "Origem")."""
+    package = find_package(
+        REAL_PT_BR_SOURCE_FILTERED_WITH_UPDATE, "Google.Chrome.EXE", source_filtered=True
+    )
+    assert package.version == "153.0.8010.53"
+    assert package.available == "154.0.8037.58"
+    assert package.source is None
+
+
+def test_parse_source_filtered_output_up_to_date():
+    package = find_package(
+        PT_BR_SOURCE_FILTERED_UP_TO_DATE, "Google.Chrome.EXE", source_filtered=True
+    )
+    assert package.version == "154.0.8037.58"
+    assert package.available is None
+
+
+def test_footer_lines_are_ignored():
+    packages = parse_list_output(REAL_PT_BR_UPGRADE_AVAILABLE_FOOTER)
+    assert find_package(REAL_PT_BR_UPGRADE_AVAILABLE_FOOTER, "Google.Chrome.EXE").available
+    assert all(package.package_id != "Google.Chrome" for package in packages)
 
 
 def test_parse_en_us_output_without_available_column():
@@ -82,14 +118,22 @@ def test_output_without_table_yields_nothing():
 
 
 def test_unexpected_table_layout_raises():
-    output = winget_table(["A", "B", "C"], [10, 10, 10], [["1", "2", "3"]])
+    output = winget_table(["A", "B"], [10, 10], [["1", "2"]])
     with pytest.raises(WingetError, match="não reconhecido"):
         parse_list_output(output)
 
 
 def test_list_package_found_not_found_and_failures():
-    runner = FakeRunner({("list", "Google.Chrome.EXE"): command_result(0, REAL_PT_BR_WITH_UPDATE)})
-    assert list_package(WINGET, "Google.Chrome.EXE", timeout=60, runner=runner).available
+    runner = FakeRunner(
+        {("list", "Google.Chrome.EXE"): command_result(0, REAL_PT_BR_SOURCE_FILTERED_WITH_UPDATE)}
+    )
+    package = list_package(WINGET, "Google.Chrome.EXE", timeout=60, runner=runner)
+    assert package.available == "154.0.8037.58"
+
+    runner = FakeRunner(
+        {("list", "Google.Chrome.EXE"): command_result(0, PT_BR_SOURCE_FILTERED_UP_TO_DATE)}
+    )
+    assert list_package(WINGET, "Google.Chrome.EXE", timeout=60, runner=runner).available is None
 
     runner = FakeRunner(
         {("list", "Google.Chrome"): command_result(NO_APPLICATIONS_FOUND, REAL_PT_BR_NOT_FOUND)}
@@ -109,7 +153,7 @@ def test_list_package_found_not_found_and_failures():
 def test_commands_use_exact_id_fixed_source_and_no_interaction():
     runner = FakeRunner(
         {
-            ("list", "Google.Chrome"): command_result(0, EN_US_UP_TO_DATE),
+            ("list", "Google.Chrome"): command_result(0, PT_BR_SOURCE_FILTERED_UP_TO_DATE),
             ("upgrade", "Google.Chrome"): command_result(0),
         }
     )

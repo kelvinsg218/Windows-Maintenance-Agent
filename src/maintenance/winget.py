@@ -164,8 +164,25 @@ def clean_output(text: str) -> list[str]:
     return lines
 
 
-def parse_list_output(text: str) -> list[WingetPackage]:
-    """Interpreta a tabela de ``winget list`` (colunas Nome, ID, Versão, [Disponível], Origem)."""
+def _column_layout(count: int, *, source_filtered: bool) -> tuple[int | None, int | None]:
+    """Índices das colunas (Disponível, Origem) conforme o número de colunas da tabela.
+
+    Colunas: Nome, ID, Versão, [Disponível], [Origem]. "Disponível" só aparece se algum
+    pacote tem atualização; "Origem" é omitida quando o comando usa ``--source``.
+    """
+    if count == 5:
+        return 3, 4
+    if count == 4:
+        return (3, None) if source_filtered else (None, 3)
+    return None, None
+
+
+def parse_list_output(text: str, *, source_filtered: bool = False) -> list[WingetPackage]:
+    """Interpreta a tabela de ``winget list``.
+
+    ``source_filtered`` indica que o comando foi executado com ``--source`` (sem a coluna
+    Origem): com 4 colunas, a quarta é então "Disponível".
+    """
     lines = clean_output(text)
     separator = next(
         (
@@ -179,9 +196,9 @@ def parse_list_output(text: str) -> list[WingetPackage]:
         return []
     header = lines[separator - 1]
     starts = [match.start() for match in re.finditer(r"\S+", header)]
-    if len(starts) not in (4, 5):
+    if len(starts) not in (3, 4, 5):
         raise WingetError(f"formato de tabela do winget não reconhecido: {header.strip()!r}")
-    has_available = len(starts) == 5
+    available_index, source_index = _column_layout(len(starts), source_filtered=source_filtered)
     packages: list[WingetPackage] = []
     for line in lines[separator + 1 :]:
         if len(line) <= starts[1]:
@@ -195,15 +212,17 @@ def parse_list_output(text: str) -> list[WingetPackage]:
                 name=cells[0],
                 package_id=cells[1],
                 version=cells[2],
-                available=(cells[3] or None) if has_available else None,
-                source=cells[-1] or None,
+                available=(cells[available_index] or None) if available_index else None,
+                source=(cells[source_index] or None) if source_index else None,
             )
         )
     return packages
 
 
-def find_package(text: str, package_id: str) -> WingetPackage | None:
-    for package in parse_list_output(text):
+def find_package(
+    text: str, package_id: str, *, source_filtered: bool = False
+) -> WingetPackage | None:
+    for package in parse_list_output(text, source_filtered=source_filtered):
         if package.package_id.lower() == package_id.lower():
             return package
     return None
@@ -241,7 +260,8 @@ def list_package(
         return None
     if not result.ok:
         raise WingetError(_failure_message("winget list", result))
-    return find_package(result.stdout, package_id)
+    # Com --source o winget omite a coluna "Origem".
+    return find_package(result.stdout, package_id, source_filtered=True)
 
 
 def upgrade_package(

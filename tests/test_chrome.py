@@ -22,13 +22,17 @@ from tests.helpers import FakeRunner, command_result, winget_table
 
 WINGET = Path(r"C:\Users\ti\AppData\Local\Microsoft\WindowsApps\winget.exe")
 NOT_FOUND = command_result(NO_APPLICATIONS_FOUND, "Nenhum pacote instalado foi encontrado.\r\n")
-HEADERS = ["Nome", "ID", "Versão", "Disponível", "Origem"]
-WIDTHS = [14, 18, 14, 14, 6]
 
 
 def listing(package_id: str, version: str, available: str = "") -> object:
-    row = ["Google Chrome", package_id, version, available, "winget"]
-    return command_result(0, winget_table(HEADERS, WIDTHS, [row]))
+    """Saída de ``winget list --source winget`` (sem coluna Origem, como na saída real)."""
+    if available:
+        headers, widths = ["Nome", "ID", "Versão", "Disponível"], [14, 18, 14, 13]
+        row = ["Google Chrome", package_id, version, available]
+    else:
+        headers, widths = ["Nome", "ID", "Versão"], [14, 18, 13]
+        row = ["Google Chrome", package_id, version]
+    return command_result(0, winget_table(headers, widths, [row]))
 
 
 @pytest.fixture
