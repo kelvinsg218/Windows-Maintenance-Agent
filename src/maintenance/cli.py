@@ -342,10 +342,13 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, argparse.ArgumentParser], int]
 
 
 def _configure_console() -> None:
-    # Evita UnicodeEncodeError em consoles/redirecionamentos com code page limitada.
+    # Saída sempre em UTF-8, como logs e relatórios. No console o Python já usa a API
+    # Unicode do Windows; isto padroniza a saída redirecionada (arquivo, RMM, agendador),
+    # que de outra forma dependeria da code page local (e o executável do PyInstaller
+    # ignora PYTHONIOENCODING).
     for stream in (sys.stdout, sys.stderr):
         try:
-            stream.reconfigure(errors="replace")
+            stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
 
