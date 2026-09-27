@@ -1,0 +1,4 @@
+# Dependências de empacotamento (opcional): gera dist\maintenance.exe
+# Instalação: pip install -r requirements-build.txt   (ou: pip install -e .[build])
+-r requirements.txt
+pyinstaller==6.22.3
