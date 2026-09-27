@@ -186,7 +186,7 @@ def _log_system_info(info: SystemInfo) -> None:
     logger.info("Architecture: %s", info.architecture)
     if info.disk:
         logger.info(
-            "Disk %s: %s free of %s",
+            "Disk %s %s free of %s",
             info.disk.drive,
             format_bytes(info.disk.free_bytes),
             format_bytes(info.disk.total_bytes),

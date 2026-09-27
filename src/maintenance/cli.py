@@ -293,7 +293,8 @@ def cmd_history(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
     if not entries:
         print("Nenhuma execução registrada.")
         return EXIT_OK
-    print(f"Histórico de manutenção (últimas {len(entries)} execuções)\n")
+    count = "1 execução" if len(entries) == 1 else f"últimas {len(entries)} execuções"
+    print(f"Histórico de manutenção ({count})\n")
     for entry in entries:
         columns = [
             f"#{entry.id}",
