@@ -249,3 +249,53 @@ def test_config_disabled_tasks_are_reported(tmp_path):
     outcome = run_maintenance(config, env.paths, QUIET, env.services)
     assert outcome.report.module("chrome").summary == "Desabilitado na configuração"
     assert env.old_file.exists()
+
+
+def test_run_reports_progress_before_each_step_and_every_result(tmp_path):
+    env = build_environment(tmp_path, admin=True)
+    events = []
+    outcome = run_maintenance(
+        env.config,
+        env.paths,
+        QUIET,
+        env.services,
+        on_result=lambda result: events.append(("result", result.module)),
+        progress=lambda message: events.append(("progress", message)),
+    )
+    results = [name for kind, name in events if kind == "result"]
+    assert results == [result.module for result in outcome.report.modules]
+    assert len(results) == 8
+    messages = [message for kind, message in events if kind == "progress"]
+    assert messages[0] == "Coletando informações do sistema..."
+    assert messages[-1] == "Gerando relatório..."
+    chrome_step = events.index(("progress", "Atualizando o Google Chrome..."))
+    assert chrome_step < events.index(("result", "chrome"))
+    assert not any("rede" in message for message in messages)  # sem compartilhamento
+
+
+def test_progress_reflects_dry_run_and_selected_tasks(tmp_path):
+    share = tmp_path / "share"
+    share.mkdir()
+    env = build_environment(tmp_path, config={"network_log_path": str(share)})
+    messages = []
+    run_maintenance(
+        env.config,
+        env.paths,
+        RunOptions(tasks=("cleanup",), dry_run=True, console=False),
+        env.services,
+        progress=messages.append,
+    )
+    assert "Limpando arquivos temporários (simulação)..." in messages
+    assert not any("Chrome" in message for message in messages)
+    assert not any("rede" in message for message in messages)  # dry-run não sincroniza
+
+    messages.clear()
+    run_maintenance(
+        env.config,
+        env.paths,
+        RunOptions(tasks=("cleanup",), console=False),
+        env.services,
+        progress=messages.append,
+    )
+    assert "Limpando arquivos temporários..." in messages
+    assert messages[-1] == "Copiando log e relatórios para o compartilhamento de rede..."

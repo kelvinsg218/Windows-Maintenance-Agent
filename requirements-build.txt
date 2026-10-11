@@ -1,4 +1,4 @@
-# Dependências de empacotamento (opcional): gera dist\maintenance.exe
+# Dependências de empacotamento (opcional): gera o aplicativo desktop e o maintenance.exe em dist\
 # Instalação: pip install -r requirements-build.txt   (ou: pip install -e .[build])
 -r requirements.txt
 pyinstaller==6.22.3

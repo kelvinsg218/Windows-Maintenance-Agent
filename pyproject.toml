@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "windows-maintenance-agent"
 dynamic = ["version"]
-description = "Agente de manutenção preventiva para estações Windows 10/11 em ambientes corporativos de TI."
+description = "Agente de manutenção preventiva para estações Windows 10/11: aplicativo desktop e linha de comando."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,6 +14,7 @@ dependencies = [
 ]
 classifiers = [
     "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
     "Operating System :: Microsoft :: Windows :: Windows 10",
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3",
@@ -27,11 +28,18 @@ build = ["pyinstaller>=6"]
 [project.scripts]
 maintenance = "maintenance.cli:main"
 
+[project.gui-scripts]
+# Interface gráfica (Tkinter, biblioteca padrão): abre sem janela de console.
+maintenance-gui = "maintenance.gui.app:main"
+
 [tool.setuptools.dynamic]
 version = { attr = "maintenance.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"maintenance.gui" = ["assets/*.ico", "assets/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

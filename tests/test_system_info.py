@@ -3,10 +3,14 @@ import pytest
 from maintenance.results import Status
 from maintenance.system_info import (
     NT_CURRENT_VERSION,
+    PROCESSOR_KEY,
     DiskUsage,
+    MemoryStatus,
     collect_system_info,
     evaluate_disk_space,
     get_architecture,
+    get_memory_status,
+    get_processor_name,
     get_system_drive,
     get_windows_version,
     normalize_product_name,
@@ -93,6 +97,25 @@ def test_disk_space_evaluation(free_gb, status):
 def test_disk_space_unknown_is_warning():
     result = evaluate_disk_space(None, min_free_percent=10, min_free_gb=10)
     assert result.status is Status.WARNING
+
+
+def test_processor_name_from_registry(registry):
+    assert get_processor_name(registry) is None
+    registry.set("HKLM", PROCESSOR_KEY, "ProcessorNameString", "  Intel(R)  Core(TM) i5-1235U  ")
+    assert get_processor_name(registry) == "Intel(R) Core(TM) i5-1235U"
+
+
+def test_memory_used_percent():
+    assert MemoryStatus(8 * GB, 2 * GB).used_percent == pytest.approx(75.0)
+    assert MemoryStatus(0, 0).used_percent == 0.0
+
+
+@windows_only
+def test_real_memory_status_smoke():
+    status = get_memory_status()
+    assert status is not None
+    assert 0 < status.available_bytes <= status.total_bytes
+    assert status.installed_bytes is None or status.installed_bytes >= status.total_bytes
 
 
 @windows_only

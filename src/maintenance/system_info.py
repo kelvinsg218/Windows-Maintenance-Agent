@@ -1,7 +1,8 @@
 """Coleta de informações da máquina úteis à manutenção.
 
 Coleta apenas o necessário para identificar a estação e avaliar seu estado
-(nome, usuário da sessão, versão do Windows, arquitetura, disco e uptime).
+(nome, usuário da sessão, versão do Windows, arquitetura, disco e uptime; o painel
+da interface gráfica também exibe processador e memória RAM).
 Nenhum dado pessoal adicional é lido.
 """
 
@@ -22,6 +23,7 @@ from maintenance.registry import HKLM, RegistryReader
 from maintenance.results import ModuleResult, Status
 
 NT_CURRENT_VERSION = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+PROCESSOR_KEY = r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
 # O Registro continua informando "Windows 10" no ProductName do Windows 11;
 # a distinção oficial é o número do build.
 WINDOWS_11_FIRST_BUILD = 22000
@@ -78,6 +80,18 @@ class DiskUsage:
             "free_bytes": self.free_bytes,
             "used_percent": round(self.used_percent, 1),
         }
+
+
+@dataclass(frozen=True)
+class MemoryStatus:
+    total_bytes: int  # memória utilizável pelo Windows
+    available_bytes: int
+    installed_bytes: int | None = None  # memória instalada (pode ser maior que a utilizável)
+
+    @property
+    def used_percent(self) -> float:
+        used = max(self.total_bytes - self.available_bytes, 0)
+        return 100.0 * used / self.total_bytes if self.total_bytes else 0.0
 
 
 @dataclass(frozen=True)
@@ -186,6 +200,50 @@ def get_uptime_seconds() -> float | None:
         kernel32 = ctypes.WinDLL("kernel32")
         kernel32.GetTickCount64.restype = ctypes.c_ulonglong
         return kernel32.GetTickCount64() / 1000.0
+    except (AttributeError, OSError):
+        return None
+
+
+def get_processor_name(registry: RegistryReader) -> str | None:
+    value = registry.get_value(HKLM, PROCESSOR_KEY, "ProcessorNameString")
+    if isinstance(value, str) and value.strip():
+        return " ".join(value.split())  # o Registro costuma trazer espaços repetidos
+    return None
+
+
+def get_memory_status() -> MemoryStatus | None:
+    """Memória física total, disponível e instalada (GlobalMemoryStatusEx)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", wintypes.DWORD),
+                ("dwMemoryLoad", wintypes.DWORD),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32")
+        status = MEMORYSTATUSEX()
+        status.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+        if not kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return None
+        installed_kb = ctypes.c_ulonglong(0)
+        installed = (
+            installed_kb.value * 1024
+            if kernel32.GetPhysicallyInstalledSystemMemory(ctypes.byref(installed_kb))
+            else None
+        )
+        return MemoryStatus(int(status.ullTotalPhys), int(status.ullAvailPhys), installed)
     except (AttributeError, OSError):
         return None
 

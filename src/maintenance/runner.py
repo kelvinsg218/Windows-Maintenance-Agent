@@ -378,8 +378,15 @@ def run_maintenance(
     paths: AppPaths,
     options: RunOptions | None = None,
     services: Services | None = None,
+    *,
+    on_result: Callable[[ModuleResult], None] | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> RunOutcome:
-    """Executa a manutenção. Lança :class:`CriticalError` se não puder começar."""
+    """Executa a manutenção. Lança :class:`CriticalError` se não puder começar.
+
+    ``on_result`` recebe o resultado de cada etapa assim que ela termina e ``progress``
+    recebe uma mensagem antes de cada etapa (usados pela interface gráfica).
+    """
     ensure_supported_platform()
     options = options or RunOptions()
     services = services or Services()
@@ -393,7 +400,7 @@ def run_maintenance(
     if not lock.acquire():
         raise CriticalError("outra manutenção já está em execução nesta máquina")
     try:
-        return _run_locked(config, paths, options, services)
+        return _run_locked(config, paths, options, services, on_result, progress)
     finally:
         lock.release()
         close_logging()
@@ -434,11 +441,28 @@ def _not_requested(task: str, tasks_from_flags: bool) -> ModuleResult:
 
 
 def _run_locked(
-    config: AppConfig, paths: AppPaths, options: RunOptions, services: Services
+    config: AppConfig,
+    paths: AppPaths,
+    options: RunOptions,
+    services: Services,
+    on_result: Callable[[ModuleResult], None] | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> RunOutcome:
+    results: list[ModuleResult] = []
+
+    def step(message: str) -> None:
+        if progress:
+            progress(message)
+
+    def record(result: ModuleResult) -> None:
+        results.append(result)
+        if on_result:
+            on_result(result)
+
     started = services.now()
     clock = time.monotonic()
     selected = select_tasks(config, options.tasks)
+    step("Coletando informações do sistema...")
     info = services.collect_system_info(services.registry)
     stem = run_file_stem(info.hostname, started)
     log_file = paths.logs_dir / f"{stem}.log"
@@ -455,25 +479,26 @@ def _run_locked(
     _log_system_info(info)
     history, run_id = _start_history(paths, info, started, selected, options, log_file)
 
-    results: list[ModuleResult] = []
     reboot_status = RebootStatus(required=False)
     disk_after: DiskUsage | None = info.disk
     privileges = PrivilegeInfo(is_admin=False)
     critical_error: str | None = None
+    simulation = " (simulação)" if options.dry_run else ""
     try:
-        results.append(
-            ModuleResult("system_info", Status.SUCCESS, "Informações coletadas", info.to_dict())
-        )
+        record(ModuleResult("system_info", Status.SUCCESS, "Informações coletadas", info.to_dict()))
+        step("Verificando privilégios administrativos...")
         logger.info("Checking privileges")
         privileges = services.get_privileges()
-        results.append(privilege_result(privileges))
+        record(privilege_result(privileges))
         _log_result(results[-1])
+        step("Verificando o winget...")
         winget_info, winget_status = _check_winget(services)
-        results.append(winget_status)
+        record(winget_status)
         winget_path = winget_info.path if winget_info else None
 
         if TASK_CHROME in selected:
-            results.append(
+            step(f"Atualizando o Google Chrome{simulation}...")
+            record(
                 _safe_step(
                     TASK_CHROME,
                     lambda: chrome.process_chrome(
@@ -488,10 +513,11 @@ def _run_locked(
                 )
             )
         else:
-            results.append(_not_requested(TASK_CHROME, bool(options.tasks)))
+            record(_not_requested(TASK_CHROME, bool(options.tasks)))
 
         if TASK_WINDOWS_UPDATE in selected:
-            results.append(
+            step(f"Processando atualizações do Windows{simulation} (pode levar vários minutos)...")
+            record(
                 _safe_step(
                     TASK_WINDOWS_UPDATE,
                     lambda: _windows_update(
@@ -500,21 +526,23 @@ def _run_locked(
                 )
             )
         else:
-            results.append(_not_requested(TASK_WINDOWS_UPDATE, bool(options.tasks)))
+            record(_not_requested(TASK_WINDOWS_UPDATE, bool(options.tasks)))
 
+        step("Verificando reinicialização pendente...")
         logger.info("Checking pending reboot")
         installation_reboot = any(result.details.get("reboot_required") for result in results)
         reboot_status = detect_pending_reboot(services.registry).with_installation_reboot(
             installation_reboot
         )
-        results.append(reboot_result(reboot_status))
+        record(reboot_result(reboot_status))
         _log_result(results[-1])
         if reboot_status.required:
             logger.warning("REBOOT_REQUIRED = true")
             logger.warning(reboot_status.message)
 
         if TASK_CLEANUP in selected:
-            results.append(
+            step(f"Limpando arquivos temporários{simulation}...")
+            record(
                 _safe_step(
                     TASK_CLEANUP,
                     lambda: _cleanup(
@@ -523,12 +551,13 @@ def _run_locked(
                 )
             )
         else:
-            results.append(_not_requested(TASK_CLEANUP, bool(options.tasks)))
+            record(_not_requested(TASK_CLEANUP, bool(options.tasks)))
 
+        step("Verificando o espaço em disco...")
         logger.info("Checking disk space")
         drive = info.disk.drive if info.disk else services.system_drive()
         disk_after = services.disk_usage(drive)
-        results.append(
+        record(
             evaluate_disk_space(
                 disk_after,
                 min_free_percent=config.disk_min_free_percent,
@@ -545,6 +574,7 @@ def _run_locked(
         logger.exception("Critical error: maintenance aborted")
         critical_error = f"{type(exc).__name__}: {exc}"
 
+    step("Gerando relatório...")
     overall = aggregate(
         results,
         requested_tasks=selected,
@@ -610,6 +640,8 @@ def _run_locked(
         if removed:
             logger.info("Retention: %d old file(s) removed from %s", removed, directory.name)
 
+    if config.network_log_path and not options.dry_run:
+        step("Copiando log e relatórios para o compartilhamento de rede...")
     network = _network_sync(config, info, options, [log_file, report_file, json_file])
     if history is not None and run_id is not None and network.status is not Status.SKIPPED:
         try:

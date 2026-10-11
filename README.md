@@ -1,17 +1,21 @@
 # Windows Maintenance Agent
 
-Agente de linha de comando para **manutenção preventiva de estações Windows 10 e 11** em
-ambientes corporativos de TI. Em uma única execução ele identifica a máquina, verifica
-privilégios, atualiza o Google Chrome via winget, verifica e instala atualizações do Windows
-pela API oficial do Windows Update, detecta reinicialização pendente, limpa arquivos
-temporários com segurança, verifica o disco e registra tudo em **logs, relatórios e histórico**.
-Pode ser usado manualmente pelo técnico ou pelo **Agendador de Tarefas do Windows**.
+Agente de **manutenção preventiva de estações Windows 10 e 11**, disponível como
+**aplicativo desktop** (janela própria, em português, sem instalar nada) e como **linha de
+comando** para técnicos e para o **Agendador de Tarefas do Windows**. Em uma única execução
+ele identifica a máquina, verifica privilégios, atualiza o Google Chrome via winget, verifica
+e instala atualizações do Windows pela API oficial do Windows Update, detecta reinicialização
+pendente, limpa arquivos temporários com segurança, verifica o disco e registra tudo em
+**logs, relatórios e histórico**.
 
 > O agente **nunca** reinicia o computador, **nunca** desativa proteções do Windows e
 > **nunca** baixa nem executa código da internet.
 
+![Painel do aplicativo desktop](docs/images/painel.png)
+
 ## Sumário
 
+- [Aplicativo desktop](#aplicativo-desktop)
 - [Problema](#problema)
 - [Solução](#solução)
 - [Funcionalidades: implementado x planejado](#funcionalidades-implementado-x-planejado)
@@ -34,6 +38,59 @@ Pode ser usado manualmente pelo técnico ou pelo **Agendador de Tarefas do Windo
 - [Roadmap](#roadmap)
 - [Estrutura do repositório](#estrutura-do-repositório)
 
+## Aplicativo desktop
+
+### Como baixar e abrir
+
+1. Acesse a página de **[Releases](https://github.com/kelvinsg218/Windows-Maintenance-Agent/releases/latest)**
+   e baixe o arquivo **`Windows-Maintenance-Agent-v1.0.0.exe`**.
+2. Coloque-o em uma pasta própria (ex.: `Documentos\Windows Maintenance Agent`): o aplicativo
+   é portátil e cria ao lado dele as pastas `logs`, `reports` e `data` (histórico).
+3. Abra com **dois cliques**. Não é preciso instalar Python, abrir terminal nem configurar nada.
+
+**Requisitos:** Windows 10 ou Windows 11 de 64 bits. O winget (App Installer, já presente no
+Windows 11 e nas versões atuais do Windows 10) é usado somente para atualizar o Google Chrome.
+
+> **Aviso do SmartScreen:** o executável ainda não tem assinatura digital. Na primeira
+> execução o Windows pode exibir "O Windows protegeu o computador". Confira se o arquivo veio
+> da página de Releases deste repositório (o SHA-256 está publicado na release) e clique em
+> **Mais informações → Executar assim mesmo**.
+
+### Telas
+
+| Tela | O que faz |
+|---|---|
+| **Painel** | Nome do computador, usuário, Windows (versão e build), processador, memória RAM, armazenamento, tempo de atividade, privilégios, reinicialização pendente, última manutenção, Google Chrome e winget, além do **status geral do sistema**. |
+| **Verificação do sistema** | Executa o `check` (somente leitura) com progresso por etapa: problemas encontrados, alertas, recomendações e quais pendências podem ser **corrigidas na Manutenção**. |
+| **Manutenção** | Executa o `run` somente com as rotinas marcadas (Google Chrome, Windows Update, limpeza de temporários), com a descrição de cada uma, a indicação das que exigem administrador, **modo simulação**, confirmação, andamento e o resultado de cada etapa. |
+| **Histórico** | Manutenções registradas neste computador (inclusive simulações), com o resultado detalhado de cada uma e acesso ao relatório e ao log. |
+
+| Verificação do sistema | Manutenção |
+|---|---|
+| ![Verificação do sistema](docs/images/verificacao.png) | ![Manutenção](docs/images/manutencao.png) |
+
+*Capturas com dados de exemplo.* A interface usa tema escuro, se ajusta ao redimensionamento
+da janela e nunca congela: verificações e manutenções rodam em segundo plano.
+
+### Permissões de administrador
+
+O aplicativo abre **sem pedir privilégios de administrador** e, assim, já mostra o painel,
+faz a verificação completa, consulta o histórico, limpa a pasta Temp do usuário e atualiza o
+Chrome instalado apenas para o usuário. Exigem administrador: **instalar atualizações do
+Windows**, atualizar o Chrome instalado para todos os usuários e limpar `C:\Windows\Temp` e a
+Temp dos outros perfis — sem elevação, essas etapas são apenas verificadas e informadas.
+
+Quando precisar delas, use **Reiniciar como administrador** (barra lateral ou tela
+Manutenção): o Windows exibe o prompt do UAC e a decisão é sua. O aplicativo nunca contorna o
+UAC, nunca reinicia o computador e nenhuma rotina é executada sem a sua confirmação.
+
+### Arquivos e configuração
+
+O aplicativo usa a mesma estrutura da linha de comando: `logs\`, `reports\` e `data\` ao lado
+do executável e, opcionalmente, um `config.json` na mesma pasta (veja
+[Configuração](#configuração)). Para executar a partir do código-fonte:
+`.\.venv\Scripts\maintenance-gui` ou `python -m maintenance.gui`.
+
 ## Problema
 
 A manutenção preventiva de estações costuma ser manual, repetitiva e sem registro: cada
@@ -49,7 +106,8 @@ caminho até ele) seria executada sem revisão, sem versão definida e sem trilh
 ## Solução
 
 O Windows Maintenance Agent é um **agente versionado**: todo o código está neste repositório,
-é revisável, testado e distribuído como uma versão fechada (código-fonte ou `maintenance.exe`).
+é revisável, testado e distribuído como uma versão fechada (código-fonte, aplicativo desktop ou
+`maintenance.exe`).
 A abordagem de baixar e executar scripts remotos foi eliminada; futuras atualizações do agente
 serão tratadas como novas releases verificadas (veja [Roadmap](#roadmap)).
 
@@ -77,14 +135,15 @@ continua; somente erros críticos interrompem a execução.
 | Rede | Cópia opcional de log e relatórios para `\\SERVIDOR\...\<HOSTNAME>\`, sem credenciais e sem falhar a manutenção se o servidor estiver offline. |
 | Agendamento | Scripts `install_task.ps1` / `remove_task.ps1` com `-WhatIf`. |
 | Simulação | `check` (somente leitura) e `run --dry-run` (fluxo completo sem alterações). |
-| Empacotamento | `scripts/build_exe.ps1` gera `dist\maintenance.exe` com PyInstaller. |
+| Aplicativo desktop | Interface gráfica em português (Tkinter) sobre os mesmos fluxos `status`, `check` e `run`: painel, verificação, manutenção com confirmação, histórico e elevação sob demanda pelo UAC. |
+| Empacotamento | `scripts/build_exe.ps1` gera o aplicativo desktop e o `maintenance.exe` (arquivos únicos, com ícone e informações de versão) com PyInstaller. |
 | Atualização do agente | Apenas as validações preparatórias (`release.py`): comparação de versões, validação de manifesto (HTTPS, host autorizado, SHA-256) e verificação de hash. **Não há download.** |
 
 ### Planejado (ainda não implementado)
 
 - Atualização automática do próprio agente por releases verificadas (download, assinatura, troca com backup e rollback).
 - Reenvio ao compartilhamento de rede de relatórios gerados enquanto o servidor estava offline.
-- Assinatura de código (Authenticode) e informações de versão no executável.
+- Assinatura de código (Authenticode) dos executáveis.
 - Registro de eventos no Log de Eventos do Windows.
 - Verificação de todos os discos fixos (hoje: somente a unidade do sistema).
 - Novos alvos de limpeza (cache do Windows Update com o serviço parado, Otimização de Entrega, relatórios do WER).
@@ -94,6 +153,7 @@ continua; somente erros críticos interrompem a execução.
 
 ```
 maintenance (CLI)                 cli.py
+Aplicativo desktop (GUI)          gui/ (app, páginas, widgets, tema, textos em pt-BR)
 │
 └── runner.py                     orquestra "check" e "run", isola falhas, bloqueio de execução
     ├── system_info.py            hostname, usuário, Windows, arquitetura, disco, uptime
@@ -149,13 +209,16 @@ opcional que falha não marca a manutenção inteira como `FAILED`.
   (COM). A standard library não oferece acesso adequado a automação COM, e usar PowerShell
   embutido deixaria a lógica fora dos testes em Python e falharia em máquinas com
   Constrained Language Mode (AppLocker/WDAC).
+- **Tkinter** (biblioteca padrão) para o aplicativo desktop, sem dependências adicionais;
+  os ícones vêm das fontes Segoe Fluent Icons / Segoe MDL2 Assets do próprio Windows.
 - **winget** (App Installer da Microsoft) para o Google Chrome.
 - Desenvolvimento: **pytest** e **ruff**. Empacotamento (opcional): **PyInstaller**.
 
 ## Requisitos
 
-- Windows 10 ou 11 (x64 ou ARM64). PowerShell 5.1 para os scripts de agendamento.
-- Python 3.11+ para executar a partir do código-fonte (o `maintenance.exe` não exige Python).
+- Windows 10 ou 11 (x64 ou ARM64; os executáveis publicados são de 64 bits). PowerShell 5.1
+  para os scripts de agendamento.
+- Python 3.11+ para executar a partir do código-fonte (os executáveis não exigem Python).
 - winget (App Installer) para verificar/atualizar o Chrome.
 - Privilégios administrativos para: instalar atualizações do Windows, atualizar o Chrome
   instalado para todos os usuários e limpar `C:\Windows\Temp` e o Temp de outros perfis.
@@ -494,7 +557,7 @@ Segurança é requisito central do agente:
 ## Testes
 
 ```powershell
-.\.venv\Scripts\python -m pytest          # 200+ testes
+.\.venv\Scripts\python -m pytest          # 270+ testes
 .\.venv\Scripts\ruff check .              # lint (inclui regras de segurança)
 .\.venv\Scripts\ruff format --check .     # formatação
 ```
@@ -507,7 +570,10 @@ Windows Update com objetos COM falsos (classificação, instalação, falhas, ti
 estados e resultado geral; relatório; histórico; limpeza (arquivo bloqueado, somente leitura,
 junction apontando para fora, raízes inválidas, `%TEMP%` manipulado); rede indisponível e lenta;
 erros de subprocess (timeout, executável inexistente, exit codes HRESULT); detecção simulada
-de reinicialização; fluxos completos `run`/`check` e a CLI.
+de reinicialização; fluxos completos `run`/`check` e a CLI; aplicativo desktop (janela oculta
+sobre o mesmo ambiente simulado: painel, verificação, manutenção com confirmação e simulação,
+histórico, operação única por vez, fechamento durante a manutenção, elevação pelo UAC simulada,
+configuração inválida e verificação de que os textos exibidos estão em português).
 
 ## Empacotamento (executável)
 
@@ -516,12 +582,25 @@ de reinicialização; fluxos completos `run`/`check` e a CLI.
 powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1 -Clean
 ```
 
-Gera `dist\maintenance.exe` (arquivo único, ~10 MB, PyInstaller 6.22.3), copia o `config.example.json` para
-`dist\`, valida o executável (`maintenance.exe version`) e exibe o SHA-256 para registro
-da release. Para distribuir: copie `maintenance.exe` e um `config.json` para uma pasta
-protegida (ex.: `C:\Program Files\WindowsMaintenanceAgent`); `logs\`, `reports\` e `data\`
-são criadas ao lado do executável (ou em `data_dir`). `dist\`, `build\` e `*.exe` não são
-versionados: o código-fonte é a fonte oficial.
+Gera em `dist\` (PyInstaller 6.22.3, arquivos únicos de 64 bits, sem UPX):
+
+| Arquivo | Uso |
+|---|---|
+| `Windows-Maintenance-Agent-v<versão>.exe` | Aplicativo desktop: janela própria, sem console (~13 MB). |
+| `maintenance.exe` | Linha de comando e Agendador de Tarefas (~10 MB). |
+| `SHA256SUMS.txt` | SHA-256 dos executáveis, para publicação na release. |
+
+Os dois executáveis recebem o ícone (`src\maintenance\gui\assets\app.ico`, gerado por
+`scripts\generate_icon.ps1`) e as informações de versão de `maintenance.__version__`, e usam o
+manifesto `asInvoker` (abrem sem pedir administrador). O script valida o subsistema de janela
+do aplicativo desktop, as informações de versão e o `maintenance.exe version`, e copia o
+`config.example.json` para `dist\`. Use `-Target Gui` ou `-Target Cli` para gerar apenas um
+deles. Os executáveis são distribuídos pela página de Releases; `dist\`, `build\` e `*.exe`
+não são versionados: o código-fonte é a fonte oficial.
+
+Para uso corporativo com o Agendador de Tarefas, copie `maintenance.exe` e um `config.json`
+para uma pasta protegida (ex.: `C:\Program Files\WindowsMaintenanceAgent`); `logs\`,
+`reports\` e `data\` são criadas ao lado do executável (ou em `data_dir`).
 
 ## Limitações
 
@@ -542,7 +621,10 @@ versionados: o código-fonte é a fonte oficial.
   limpo; pastas temporárias fora de `AppData\Local\Temp` não são tratadas.
 - Disco: somente a unidade do sistema é avaliada.
 - Rede: não há reenvio automático de arquivos de execuções anteriores.
-- Mensagens de log em inglês; CLI e relatórios em português.
+- Mensagens de log em inglês; aplicativo desktop, CLI e relatórios em português.
+- Aplicativo desktop: não há botão para cancelar uma manutenção em andamento (fechar a janela
+  a interrompe, após confirmação); os executáveis não têm assinatura digital, por isso o
+  SmartScreen e alguns antivírus podem alertar na primeira execução.
 - Validado em Windows 11 25H2 (pt-BR), sem elevação. A instalação real de atualizações, a
   execução como SYSTEM, compartilhamentos reais e o Windows 10 físico não foram exercitados
   no ambiente de desenvolvimento (a lógica correspondente é coberta por testes com mocks).
@@ -561,7 +643,9 @@ versionados: o código-fonte é a fonte oficial.
 | Script `.ps1` bloqueado | Política de execução | `powershell -ExecutionPolicy Bypass -File ...` (apenas para o processo). |
 | `WARNING: Network log synchronization failed.` | Servidor offline, sem permissão ou lento | Teste `Test-Path \\SERVIDOR\TI\maintenance`; como SYSTEM, conceda gravação à conta do computador. |
 | Acentos incorretos ao capturar a saída no PowerShell 5.1 | A saída redirecionada é UTF-8 | `[Console]::OutputEncoding = [Text.Encoding]::UTF8` antes do comando, ou leia o log/relatório (UTF-8). |
-| Execução marcada como `INTERRUPTED` | Processo encerrado (Ctrl+C, tempo limite do Agendador, desligamento) | Consulte o log da execução; ajuste `-ExecutionTimeLimitHours` se necessário. |
+| Execução marcada como `INTERRUPTED` | Processo encerrado (Ctrl+C, tempo limite do Agendador, desligamento, aplicativo fechado durante a manutenção) | Consulte o log da execução; ajuste `-ExecutionTimeLimitHours` se necessário. |
+| "O Windows protegeu o computador" ao abrir o aplicativo | SmartScreen: executável sem assinatura digital | Confira a origem e o SHA-256 da release; clique em **Mais informações → Executar assim mesmo**. |
+| "Privilégios não concedidos" após **Reiniciar como administrador** | Prompt do UAC recusado ou conta sem permissão de administrador | Aceite o prompt do UAC ou peça a um administrador; sem elevação o aplicativo continua funcionando com as rotinas permitidas. |
 | `Erro de configuração` | JSON inválido, valor fora do intervalo ou chave de credencial | Corrija o `config.json` conforme a mensagem (linha/coluna indicadas). |
 
 Para detalhes de depuração, execute com `-v`.
@@ -572,7 +656,7 @@ Para detalhes de depuração, execute com `-v`.
    manifesto em local conhecido (HTTPS, host autorizado) → comparação de versão → download
    para área temporária → SHA-256 e assinatura Authenticode → validação do novo executável →
    troca mantendo backup → rollback automático em caso de falha. Sem scripts remotos.
-2. Assinatura de código e metadados de versão no `maintenance.exe`.
+2. Assinatura de código (Authenticode) dos executáveis.
 3. Reenvio de relatórios pendentes ao compartilhamento de rede.
 4. Eventos no Log de Eventos do Windows (integração com SIEM/monitoramento).
 5. Verificação de todos os discos fixos e novos alvos de limpeza.
@@ -583,11 +667,14 @@ Para detalhes de depuração, execute com `-v`.
 ```
 windows-maintenance-agent/
 ├── src/maintenance/        código do agente (ver Arquitetura)
+│   └── gui/                aplicativo desktop (Tkinter) e ícones em assets/
 ├── tests/                  testes automatizados (pytest)
 ├── scripts/
 │   ├── install_task.ps1    registra a tarefa agendada
 │   ├── remove_task.ps1     remove a tarefa agendada
-│   └── build_exe.ps1       gera dist\maintenance.exe
+│   ├── build_exe.ps1       gera o aplicativo desktop e o maintenance.exe em dist\
+│   └── generate_icon.ps1   gera o ícone do aplicativo
+├── docs/images/            capturas de tela do README
 ├── logs/  reports/         saída local (conteúdo não versionado)
 ├── config.example.json     modelo de configuração (config.json não é versionado)
 ├── requirements.txt        dependências de runtime (fixadas)
